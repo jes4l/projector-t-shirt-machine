@@ -43,11 +43,11 @@ class ColorRect:
 
 detector = HandTracker(detectionCon=0.5)
 
-cap = cv2.VideoCapture(1)
-cap.set(3, 640)
-cap.set(4, 480)
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280)
+cap.set(4, 720)
 
-canvas = np.zeros((480, 640, 3), np.uint8)
+canvas = np.zeros((720, 1280, 3), np.uint8)
 px, py = 0, 0
 color = (255, 0, 0)
 brushSize = 5
@@ -78,6 +78,7 @@ pens = [
 penBtn = ColorRect(1100, 0, 100, 50, color, "Pen")
 boardBtn = ColorRect(50, 0, 100, 100, (255, 255, 0), "Board")
 whiteBoard = ColorRect(50, 120, 1020, 580, (255, 255, 255), alpha=0.6)
+saveBtn = ColorRect(1100, 600, 100, 70, (70, 200, 70), "Save")
 
 coolingCounter = 20
 hideBoard = True
@@ -149,6 +150,14 @@ while True:
             else:
                 boardBtn.alpha = 0.5
 
+            # Check if save button is clicked
+            if saveBtn.isOver(x, y) and not coolingCounter:
+                coolingCounter = 10
+                saveBtn.alpha = 0
+                cv2.imwrite("board_drawing.png", canvas)  # Save the canvas only
+            else:
+                saveBtn.alpha = 0.5
+
         elif upFingers[1] and not upFingers[2]:
             if whiteBoard.isOver(x, y) and not hideBoard:
                 cv2.circle(frame, positions[8], brushSize, color, -1)
@@ -167,6 +176,7 @@ while True:
     boardBtn.drawRect(frame)
     penBtn.color = color
     penBtn.drawRect(frame)
+    saveBtn.drawRect(frame)  # Draw the save button
 
     if not hideBoard:
         whiteBoard.drawRect(frame)
