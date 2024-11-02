@@ -154,7 +154,36 @@ while True:
             if saveBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 saveBtn.alpha = 0
-                cv2.imwrite("board_drawing.png", canvas)  # Save the canvas only
+                saved_image_path = "board_drawing.png"
+                cv2.imwrite(saved_image_path, canvas)  # Save the canvas only
+
+                # Load the saved image and show it in a new window
+                saved_image = cv2.imread(saved_image_path)
+                if saved_image is not None:
+                    # Add text overlay to the saved image
+                    cv2.putText(
+                        saved_image,
+                        "This is your cloothing design",
+                        (50, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (255, 255, 255),
+                        2,
+                        cv2.LINE_AA,
+                    )
+                    cv2.putText(
+                        saved_image,
+                        "Now it's time to see what it looks like on you",
+                        (50, 100),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (255, 255, 255),
+                        2,
+                        cv2.LINE_AA,
+                    )
+
+                    # Display the saved image in a new window
+                    cv2.imshow("Your Art", saved_image)
             else:
                 saveBtn.alpha = 0.5
 
@@ -196,9 +225,10 @@ while True:
             pen.drawRect(frame)
 
     cv2.imshow("video", frame)
-    k = cv2.waitKey(1)
-    if k == ord("q"):
-        break
+
+    # Close the secondary "Your Art" window when 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        cv2.destroyWindow("Your Art")
 
 cap.release()
 cv2.destroyAllWindows()
