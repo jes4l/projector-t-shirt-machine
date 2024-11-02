@@ -1,6 +1,5 @@
 from handTracker import *
 import cv2
-import mediapipe as mp
 import numpy as np
 import random
 
@@ -42,7 +41,7 @@ class ColorRect:
         return (self.x + self.w > x > self.x) and (self.y + self.h > y > self.y)
 
 
-detector = HandTracker(detectionCon=0.8)
+detector = HandTracker(detectionCon=0.5)
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
@@ -55,20 +54,26 @@ brushSize = 5
 eraserSize = 20
 colorsBtn = ColorRect(200, 0, 100, 100, (120, 255, 0), "Colors")
 
-colors = []
-b = int(random.random() * 255)
-g = int(random.random() * 255)
-r = int(random.random() * 255)
-colors.append(ColorRect(300, 0, 100, 100, (b, g, r)))
-colors.append(ColorRect(400, 0, 100, 100, (0, 0, 255)))
-colors.append(ColorRect(500, 0, 100, 100, (255, 0, 0)))
-colors.append(ColorRect(600, 0, 100, 100, (0, 255, 0)))
-colors.append(ColorRect(700, 0, 100, 100, (0, 255, 255)))
-colors.append(ColorRect(800, 0, 100, 100, (0, 0, 0), "Eraser"))
+# Define color options and buttons
+colors = [
+    ColorRect(
+        300,
+        0,
+        100,
+        100,
+        (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
+    ),
+    ColorRect(400, 0, 100, 100, (0, 0, 255)),
+    ColorRect(500, 0, 100, 100, (255, 0, 0)),
+    ColorRect(600, 0, 100, 100, (0, 255, 0)),
+    ColorRect(700, 0, 100, 100, (0, 255, 255)),
+    ColorRect(800, 0, 100, 100, (0, 0, 0), "Eraser"),
+]
 clear = ColorRect(900, 0, 100, 100, (100, 100, 100), "Clear")
-pens = []
-for i, penSize in enumerate(range(5, 25, 5)):
-    pens.append(ColorRect(1100, 50 + 100 * i, 100, 100, (50, 50, 50), str(penSize)))
+pens = [
+    ColorRect(1100, 50 + 100 * i, 100, 100, (50, 50, 50), str(size))
+    for i, size in enumerate(range(5, 25, 5))
+]
 
 penBtn = ColorRect(1100, 0, 100, 50, color, "Pen")
 boardBtn = ColorRect(50, 0, 100, 100, (255, 255, 0), "Board")
@@ -80,7 +85,6 @@ hideColors = True
 hidePenSizes = True
 
 while True:
-
     if coolingCounter:
         coolingCounter -= 1
 
@@ -115,23 +119,20 @@ while True:
                     else:
                         cb.alpha = 0.5
 
-                # Clear canvas
                 if clear.isOver(x, y):
                     clear.alpha = 0
                     canvas = np.zeros((720, 1280, 3), np.uint8)
                 else:
                     clear.alpha = 0.5
 
-            # Toggle color button
             if colorsBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 colorsBtn.alpha = 0
                 hideColors = not hideColors
-                colorsBtn.text = "Colors" if hideColors else "Hide"
+                colorsBtn.text = "Colours" if hideColors else "Hide"
             else:
                 colorsBtn.alpha = 0.5
 
-            # Toggle pen size button
             if penBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 penBtn.alpha = 0
@@ -140,7 +141,6 @@ while True:
             else:
                 penBtn.alpha = 0.5
 
-            # Toggle white board button
             if boardBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 boardBtn.alpha = 0
@@ -152,7 +152,6 @@ while True:
         elif upFingers[1] and not upFingers[2]:
             if whiteBoard.isOver(x, y) and not hideBoard:
                 cv2.circle(frame, positions[8], brushSize, color, -1)
-                # drawing on the canvas
                 if px == 0 and py == 0:
                     px, py = positions[8]
                 if color == (0, 0, 0):
@@ -163,6 +162,7 @@ while True:
 
         else:
             px, py = 0, 0
+
     colorsBtn.drawRect(frame)
     boardBtn.drawRect(frame)
     penBtn.color = color
@@ -189,5 +189,6 @@ while True:
     k = cv2.waitKey(1)
     if k == ord("q"):
         break
+
 cap.release()
 cv2.destroyAllWindows()
