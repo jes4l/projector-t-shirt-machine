@@ -43,11 +43,11 @@ class ColorRect:
 
 detector = HandTracker(detectionCon=0.5)
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 1280)
-cap.set(4, 720)
+cap = cv2.VideoCapture(1)
+cap.set(3, 640)
+cap.set(4, 480)
 
-canvas = np.zeros((720, 1280, 3), np.uint8)
+canvas = np.zeros((480, 640, 3), np.uint8)
 px, py = 0, 0
 color = (255, 0, 0)
 brushSize = 5

@@ -18,10 +18,11 @@ class HandTracker:
             min_tracking_confidence=self.trackCon,
         )
         self.mpDraw = mp.solutions.drawing_utils
+        self.results = None  # Initialize self.results as None
 
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.results = self.hands.process(imgRGB)
+        self.results = self.hands.process(imgRGB)  # Set self.results here
 
         if self.results.multi_hand_landmarks:
             for handLm in self.results.multi_hand_landmarks:
@@ -33,7 +34,9 @@ class HandTracker:
 
     def getPostion(self, img, handNo=0, draw=True):
         lmList = []
-        if self.results.multi_hand_landmarks:
+        if (
+            self.results and self.results.multi_hand_landmarks
+        ):  # Check if self.results exists and has landmarks
             myHand = self.results.multi_hand_landmarks[handNo]
             for lm in myHand.landmark:
                 h, w, c = img.shape
