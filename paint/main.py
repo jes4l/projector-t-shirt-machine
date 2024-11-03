@@ -88,7 +88,10 @@ class PoseOverlay:
 
         # Calculate top-left corner for placing the overlay on the chest
         x_offset = chest_center[0] - chest_width // 2
-        y_offset = chest_center[1] - overlay_height // 2
+        # Adjust y_offset to place it lower for a T-shirt design
+        y_offset = chest_center[1] + int(
+            overlay_height * 0.3
+        )  # Move down further (30% of overlay height)
 
         # Ensure the overlay does not go out of bounds
         if (
@@ -101,7 +104,6 @@ class PoseOverlay:
 
         # Blend the overlay image onto the frame
         if has_alpha:
-            # If the image has an alpha channel, blend using transparency
             for c in range(3):  # Loop over BGR channels only
                 img[
                     y_offset : y_offset + overlay_height,
@@ -115,7 +117,6 @@ class PoseOverlay:
                     1.0 - resized_overlay[:, :, 3] / 255.0
                 )
         else:
-            # If no alpha channel, simply overlay the resized image onto the frame
             img[
                 y_offset : y_offset + overlay_height, x_offset : x_offset + chest_width
             ] = resized_overlay
