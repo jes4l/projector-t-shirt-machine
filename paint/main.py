@@ -4,6 +4,7 @@ import numpy as np
 import random
 import mediapipe as mp
 import time
+import math
 
 
 class ColorRect:
@@ -43,57 +44,101 @@ class ColorRect:
         return (self.x + self.w > x > self.x) and (self.y + self.h > y > self.y)
 
 
-class PoseDetector:
-    def __init__(
-        self,
-        staticImageMode=False,
-        modelComplexity=1,
-        smoothLandmarks=True,
-        enableSegmentation=False,
-        smoothSegmentation=True,
-        minDetectionConfidence=0.5,
-        minTrackingConfidence=0.5,
-    ):
-        self.staticImageMode = staticImageMode
-        self.modelComplexity = modelComplexity
-        self.smoothLandmarks = smoothLandmarks
-        self.enableSegmentation = enableSegmentation
-        self.smoothSegmentation = smoothSegmentation
-        self.minDetectionConfidence = minDetectionConfidence
-        self.minTrackingConfidence = minTrackingConfidence
-
-        self.mpDraw = mp.solutions.drawing_utils
+class PoseOverlay:
+    def __init__(self, overlay_img_path="board_drawing.png"):
+        # Initialize Mediapipe Pose
         self.mpPose = mp.solutions.pose
-        self.pose = self.mpPose.Pose(
-            self.staticImageMode,
-            self.modelComplexity,
-            self.smoothLandmarks,
-            self.enableSegmentation,
-            self.smoothSegmentation,
-            self.minDetectionConfidence,
-            self.minTrackingConfidence,
+        self.pose = self.mpPose.Pose()
+        self.overlay_img = cv2.imread(overlay_img_path, cv2.IMREAD_UNCHANGED)
+
+    def find_chest_area(self, img):
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(imgRGB)
+
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+            h, w, _ = img.shape
+            left_shoulder = (int(landmarks[11].x * w), int(landmarks[11].y * h))
+            right_shoulder = (int(landmarks[12].x * w), int(landmarks[12].y * h))
+
+            chest_center = (
+                (left_shoulder[0] + right_shoulder[0]) // 2,
+                (left_shoulder[1] + right_shoulder[1]) // 2,
+            )
+            chest_width = int(
+                math.hypot(
+                    right_shoulder[0] - left_shoulder[0],
+                    right_shoulder[1] - left_shoulder[1],
+                )
+            )
+            return chest_center, chest_width
+
+        return None, None
+
+    def overlay_on_chest(self, img, chest_center, chest_width):
+        # Check if the overlay image has an alpha channel
+        has_alpha = (
+            self.overlay_img.shape[2] == 4 if self.overlay_img is not None else False
         )
 
-    def findPose(self, img, draw=True):
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.results = self.pose.process(imgRGB)
-        if self.results.pose_landmarks:
-            if draw:
-                self.mpDraw.draw_landmarks(
-                    img, self.results.pose_landmarks, self.mpPose.POSE_CONNECTIONS
-                )
-        return img
+        # Resize the overlay image to fit the chest width
+        aspect_ratio = self.overlay_img.shape[1] / self.overlay_img.shape[0]
+        overlay_height = int(chest_width / aspect_ratio)
+        resized_overlay = cv2.resize(self.overlay_img, (chest_width, overlay_height))
 
-    def findPosition(self, img, draw=False):
-        lmList = []
-        if self.results.pose_landmarks:
-            for id, lm in enumerate(self.results.pose_landmarks.landmark):
-                h, w, c = img.shape
-                cx, cy = int(lm.x * w), int(lm.y * h)
-                lmList.append([id, cx, cy])
-                if draw:
-                    cv2.circle(img, (cx, cy), 7, (255, 0, 0), cv2.FILLED)
-        return lmList
+        # Calculate top-left corner for placing the overlay on the chest
+        x_offset = chest_center[0] - chest_width // 2
+        y_offset = chest_center[1] - overlay_height // 2
+
+        # Ensure the overlay does not go out of bounds
+        if (
+            (y_offset < 0)
+            or (y_offset + overlay_height > img.shape[0])
+            or (x_offset < 0)
+            or (x_offset + chest_width > img.shape[1])
+        ):
+            return  # Skip overlaying if it goes out of bounds
+
+        # Blend the overlay image onto the frame
+        if has_alpha:
+            # If the image has an alpha channel, blend using transparency
+            for c in range(3):  # Loop over BGR channels only
+                img[
+                    y_offset : y_offset + overlay_height,
+                    x_offset : x_offset + chest_width,
+                    c,
+                ] = resized_overlay[:, :, c] * (resized_overlay[:, :, 3] / 255.0) + img[
+                    y_offset : y_offset + overlay_height,
+                    x_offset : x_offset + chest_width,
+                    c,
+                ] * (
+                    1.0 - resized_overlay[:, :, 3] / 255.0
+                )
+        else:
+            # If no alpha channel, simply overlay the resized image onto the frame
+            img[
+                y_offset : y_offset + overlay_height, x_offset : x_offset + chest_width
+            ] = resized_overlay
+
+    def run_pose_detection(self):
+        cap = cv2.VideoCapture(0)
+
+        while True:
+            success, img = cap.read()
+            if not success:
+                break
+
+            chest_center, chest_width = self.find_chest_area(img)
+            if chest_center and chest_width:
+                self.overlay_on_chest(img, chest_center, chest_width)
+
+            cv2.imshow("Pose Detection with Overlay", img)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
 
 
 detector = HandTracker(detectionCon=0.5)
@@ -205,65 +250,19 @@ while True:
             else:
                 boardBtn.alpha = 0.5
 
-            # Check if save button is clicked
             if saveBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 saveBtn.alpha = 0
-                cv2.imwrite("board_drawing.png", canvas)  # Save the canvas only
+                cv2.imwrite("board_drawing.png", canvas)
 
                 # Close the current OpenCV windows and release the camera
                 cap.release()
                 cv2.destroyAllWindows()
 
-                # Open a new window and run PoseDetector
-                def run_pose_detector():
-                    cap = cv2.VideoCapture(0)
-                    detector = PoseDetector()
-
-                    pTime = 0
-                    cTime = 0
-
-                    target_fps = 100
-                    wait_key_delay = int(1000 / target_fps)
-
-                    while True:
-                        success, img = cap.read()
-
-                        img = detector.findPose(img)
-                        lmList = detector.findPosition(img)
-
-                        if len(lmList) != 0:
-                            print(lmList)
-
-                        cTime = time.time()
-                        fps = 1 / (cTime - pTime)
-                        pTime = cTime
-
-                        cv2.putText(
-                            img,
-                            str(int(fps)),
-                            (10, 70),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            2,
-                            (0, 255, 0),
-                            2,
-                        )
-
-                        cv2.imshow("Pose Detection", img)
-
-                        if (
-                            cv2.waitKey(wait_key_delay) & 0xFF == ord("q")
-                            or cv2.getWindowProperty(
-                                "Pose Detection", cv2.WND_PROP_VISIBLE
-                            )
-                            < 1
-                        ):
-                            break
-
-                    cap.release()
-                    cv2.destroyAllWindows()
-
-                run_pose_detector()
+                # Open pose detection with chest overlay
+                pose_overlay = PoseOverlay("board_drawing.png")
+                pose_overlay.run_pose_detection()
+                break
             else:
                 saveBtn.alpha = 0.5
 
@@ -285,7 +284,7 @@ while True:
     boardBtn.drawRect(frame)
     penBtn.color = color
     penBtn.drawRect(frame)
-    saveBtn.drawRect(frame)  # Draw the save button
+    saveBtn.drawRect(frame)
 
     if not hideBoard:
         whiteBoard.drawRect(frame)
