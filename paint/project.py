@@ -4,6 +4,7 @@ import random
 import mediapipe as mp
 import time
 import math
+import subprocess
 from handTracker import HandTracker
 
 
@@ -49,6 +50,8 @@ class PoseOverlay:
         self.mpPose = mp.solutions.pose
         self.pose = self.mpPose.Pose()
         self.overlay_img = cv2.imread(overlay_img_path, cv2.IMREAD_UNCHANGED)
+        self.startBtn = ColorRect(10, 10, 100, 50, (70, 70, 200), "Home")
+        self.clicked = False
 
     def find_chest_area(self, img):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -177,8 +180,15 @@ class PoseOverlay:
         # Display the overlay projection at the calculated dynamic position
         cv2.imshow("Overlay Projection", overlay_window)
 
+    def on_mouse(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if self.startBtn.isOver(x, y):
+                self.clicked = True
+
     def run_pose_detection(self):
         cap = cv2.VideoCapture(0)
+        cv2.namedWindow("Pose Detection with Overlay")
+        cv2.setMouseCallback("Pose Detection with Overlay", self.on_mouse)
 
         while True:
             success, img = cap.read()
@@ -193,13 +203,18 @@ class PoseOverlay:
                     chest_center, chest_width, primary_window_size
                 )
 
+            self.startBtn.drawRect(img)
+
             cv2.imshow("Pose Detection with Overlay", img)
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            if cv2.waitKey(1) & 0xFF == ord("q") or self.clicked:
                 break
 
         cap.release()
         cv2.destroyAllWindows()
+
+        if self.clicked:
+            subprocess.Popen(["python", "paint\start.py"])
 
 
 detector = HandTracker(detectionCon=0.5)
@@ -213,7 +228,7 @@ px, py = 0, 0
 color = (255, 0, 0)
 brushSize = 5
 eraserSize = 20
-colorsBtn = ColorRect(200, 0, 100, 100, (120, 255, 0), "Colors")
+colorsBtn = ColorRect(200, 0, 100, 100, (120, 255, 0), "Colours")
 
 colors = [
     ColorRect(

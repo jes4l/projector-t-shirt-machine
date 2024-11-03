@@ -10,7 +10,7 @@ BACKGROUND_COLOR = (230, 230, 250)
 BUTTON_COLOR = (30, 144, 255)
 BUTTON_HOVER_COLOR = (100, 149, 237)
 TEXT_COLOR = (255, 255, 255)
-FONT_SIZE = 100
+FONT_SIZE = 80
 SPLASH_COUNT = 5
 MAX_SPLASHES = 20
 NUM_RAYS = 360
@@ -203,7 +203,7 @@ while running:
 
     draw_splashes()
 
-    title_surface = font.render("Projector Palette", True, (0, 0, 0))
+    title_surface = font.render("Projector T-Shirt Machine", True, (0, 0, 0))
     title_rect = title_surface.get_rect(center=(WIDTH // 2, HEIGHT // 8))
     screen.blit(title_surface, title_rect)
 
