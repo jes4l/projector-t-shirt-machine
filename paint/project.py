@@ -111,16 +111,52 @@ class PoseOverlay:
                 y_offset : y_offset + overlay_height, x_offset : x_offset + chest_width
             ] = resized_overlay
 
-    def display_overlay_only(self, chest_center, chest_width):
+    def display_overlay_only(
+        self,
+        chest_center,
+        chest_width,
+        primary_window_size,
+        overlay_movement_factor=0.5,
+    ):
+        # Unpack the primary window dimensions
+        primary_width, primary_height = primary_window_size
         aspect_ratio = self.overlay_img.shape[1] / self.overlay_img.shape[0]
-        overlay_height = int(chest_width / aspect_ratio)
-        resized_overlay = cv2.resize(self.overlay_img, (chest_width, overlay_height))
 
-        overlay_window = np.zeros((overlay_height, chest_width, 3), dtype=np.uint8)
-        has_alpha = (
-            self.overlay_img.shape[2] == 4 if self.overlay_img is not None else False
+        # Calculate dynamic min/max projection sizes based on primary window dimensions
+        max_projection_size = int(
+            0.6 * primary_width
+        )  # e.g., max projection size as 60% of primary window width
+        min_projection_size = int(
+            0.15 * primary_width
+        )  # e.g., min projection size as 15% of primary window width
+
+        # Determine projection width inversely proportional to chest_width
+        if chest_width <= 0.15 * primary_width:
+            projection_width = max_projection_size
+        elif chest_width >= 0.3 * primary_width:
+            projection_width = min_projection_size
+        else:
+            # Smooth scaling between min and max
+            scale_factor = (0.3 * primary_width - chest_width) / (0.15 * primary_width)
+            projection_width = min_projection_size + int(
+                scale_factor * (max_projection_size - min_projection_size)
+            )
+
+        # Calculate the corresponding height while maintaining aspect ratio
+        projection_height = int(projection_width / aspect_ratio)
+
+        # Resize the overlay image to the calculated inverse dimensions
+        resized_overlay = cv2.resize(
+            self.overlay_img, (projection_width, projection_height)
         )
 
+        # Initialize the overlay window
+        overlay_window = np.zeros(
+            (projection_height, projection_width, 3), dtype=np.uint8
+        )
+
+        # Apply transparency if the overlay image has an alpha channel
+        has_alpha = self.overlay_img.shape[2] == 4
         if has_alpha:
             for c in range(3):
                 overlay_window[:, :, c] = resized_overlay[:, :, c] * (
@@ -129,6 +165,16 @@ class PoseOverlay:
         else:
             overlay_window = resized_overlay
 
+        # Calculate dynamic projection position with an offset based on `overlay_movement_factor`
+        x_center, y_center = chest_center
+        projection_x = int(x_center * overlay_movement_factor)
+        projection_y = int(y_center * overlay_movement_factor)
+
+        # Keep the projection window within primary window bounds
+        projection_x = min(max(projection_x, 0), primary_width - projection_width)
+        projection_y = min(max(projection_y, 0), primary_height - projection_height)
+
+        # Display the overlay projection at the calculated dynamic position
         cv2.imshow("Overlay Projection", overlay_window)
 
     def run_pose_detection(self):
@@ -142,7 +188,10 @@ class PoseOverlay:
             chest_center, chest_width = self.find_chest_area(img)
             if chest_center and chest_width:
                 self.overlay_on_chest(img, chest_center, chest_width)
-                self.display_overlay_only(chest_center, chest_width)
+                primary_window_size = (img.shape[1], img.shape[0])  # width, height
+                self.display_overlay_only(
+                    chest_center, chest_width, primary_window_size
+                )
 
             cv2.imshow("Pose Detection with Overlay", img)
 
