@@ -6,6 +6,8 @@ import time
 import math
 import subprocess
 from handTracker import HandTracker
+from datetime import datetime
+import os
 
 
 class ColorRect:
@@ -52,6 +54,7 @@ class PoseOverlay:
         self.overlay_img = cv2.imread(overlay_img_path, cv2.IMREAD_UNCHANGED)
         self.startBtn = ColorRect(10, 10, 100, 50, (70, 70, 200), "Home")
         self.clicked = False
+        self.overlay_img_path = overlay_img_path
 
     def find_chest_area(self, img):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -214,6 +217,9 @@ class PoseOverlay:
         cv2.destroyAllWindows()
 
         if self.clicked:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            new_filename = f"../board_drawing_{timestamp}.png"
+            os.rename(self.overlay_img_path, new_filename)
             subprocess.Popen(["python", "paint\start.py"])
 
 

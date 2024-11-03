@@ -16,7 +16,7 @@ MAX_SPLASHES = 20
 NUM_RAYS = 360
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Projector Palette")
+pygame.display.set_caption("Projector T-Shirt Machine")
 
 font = pygame.font.Font(None, FONT_SIZE)
 
