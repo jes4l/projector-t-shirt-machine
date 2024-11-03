@@ -2,6 +2,8 @@ from handTracker import *
 import cv2
 import numpy as np
 import random
+import mediapipe as mp
+import time
 
 
 class ColorRect:
@@ -39,6 +41,59 @@ class ColorRect:
 
     def isOver(self, x, y):
         return (self.x + self.w > x > self.x) and (self.y + self.h > y > self.y)
+
+
+class PoseDetector:
+    def __init__(
+        self,
+        staticImageMode=False,
+        modelComplexity=1,
+        smoothLandmarks=True,
+        enableSegmentation=False,
+        smoothSegmentation=True,
+        minDetectionConfidence=0.5,
+        minTrackingConfidence=0.5,
+    ):
+        self.staticImageMode = staticImageMode
+        self.modelComplexity = modelComplexity
+        self.smoothLandmarks = smoothLandmarks
+        self.enableSegmentation = enableSegmentation
+        self.smoothSegmentation = smoothSegmentation
+        self.minDetectionConfidence = minDetectionConfidence
+        self.minTrackingConfidence = minTrackingConfidence
+
+        self.mpDraw = mp.solutions.drawing_utils
+        self.mpPose = mp.solutions.pose
+        self.pose = self.mpPose.Pose(
+            self.staticImageMode,
+            self.modelComplexity,
+            self.smoothLandmarks,
+            self.enableSegmentation,
+            self.smoothSegmentation,
+            self.minDetectionConfidence,
+            self.minTrackingConfidence,
+        )
+
+    def findPose(self, img, draw=True):
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.results = self.pose.process(imgRGB)
+        if self.results.pose_landmarks:
+            if draw:
+                self.mpDraw.draw_landmarks(
+                    img, self.results.pose_landmarks, self.mpPose.POSE_CONNECTIONS
+                )
+        return img
+
+    def findPosition(self, img, draw=False):
+        lmList = []
+        if self.results.pose_landmarks:
+            for id, lm in enumerate(self.results.pose_landmarks.landmark):
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                lmList.append([id, cx, cy])
+                if draw:
+                    cv2.circle(img, (cx, cy), 7, (255, 0, 0), cv2.FILLED)
+        return lmList
 
 
 detector = HandTracker(detectionCon=0.5)
@@ -150,37 +205,20 @@ while True:
             else:
                 boardBtn.alpha = 0.5
 
-                # Check if save button is clicked
-                if saveBtn.isOver(x, y) and not coolingCounter:
-                    coolingCounter = 10
-                    saveBtn.alpha = 0
-                    cv2.imwrite("board_drawing.png", canvas)  # Save the canvas only
-
-                    # Open a new window and print "hello"
-                    new_window = np.zeros((200, 400, 3), np.uint8)
-                    cv2.putText(
-                        new_window,
-                        "hello",
-                        (50, 100),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        2,
-                        (255, 255, 255),
-                        3,
-                    )
-                    cv2.imshow("New Window", new_window)
-                else:
-                    saveBtn.alpha = 0.5
-
             # Check if save button is clicked
             if saveBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 saveBtn.alpha = 0
                 cv2.imwrite("board_drawing.png", canvas)  # Save the canvas only
 
+                # Close the current OpenCV windows and release the camera
+                cap.release()
+                cv2.destroyAllWindows()
+
                 # Open a new window and run PoseDetector
                 def run_pose_detector():
                     cap = cv2.VideoCapture(0)
-                    detector = poseDetector()
+                    detector = PoseDetector()
 
                     pTime = 0
                     cTime = 0
