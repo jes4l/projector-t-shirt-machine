@@ -18,12 +18,11 @@ class HandTracker:
             min_tracking_confidence=self.trackCon,
         )
         self.mpDraw = mp.solutions.drawing_utils
-        self.results = None  # Initialize self.results as None
+        self.results = None
 
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.results = self.hands.process(imgRGB)  # Set self.results here
-
+        self.results = self.hands.process(imgRGB)
         if self.results.multi_hand_landmarks:
             for handLm in self.results.multi_hand_landmarks:
                 if draw:
@@ -34,28 +33,23 @@ class HandTracker:
 
     def getPostion(self, img, handNo=0, draw=True):
         lmList = []
-        if (
-            self.results and self.results.multi_hand_landmarks
-        ):  # Check if self.results exists and has landmarks
+        if self.results and self.results.multi_hand_landmarks:
             myHand = self.results.multi_hand_landmarks[handNo]
             for lm in myHand.landmark:
                 h, w, c = img.shape
                 cx, cy = int(lm.x * w), int(lm.y * h)
                 lmList.append((cx, cy))
-
                 if draw:
                     cv2.circle(img, (cx, cy), 5, (255, 0, 255), cv2.FILLED)
         return lmList
 
     def getUpFingers(self, img):
         pos = self.getPostion(img, draw=False)
-        self.upfingers = []
+        upfingers = []
         if pos:
-            self.upfingers.append(
-                (pos[4][1] < pos[3][1] and (pos[5][0] - pos[4][0] > 10))
-            )
-            self.upfingers.append((pos[8][1] < pos[7][1] and pos[7][1] < pos[6][1]))
-            self.upfingers.append((pos[12][1] < pos[11][1] and pos[11][1] < pos[10][1]))
-            self.upfingers.append((pos[16][1] < pos[15][1] and pos[15][1] < pos[14][1]))
-            self.upfingers.append((pos[20][1] < pos[19][1] and pos[19][1] < pos[18][1]))
-        return self.upfingers
+            upfingers.append(pos[4][1] < pos[3][1] and (pos[5][0] - pos[4][0] > 10))
+            upfingers.append(pos[8][1] < pos[7][1] and pos[7][1] < pos[6][1])
+            upfingers.append(pos[12][1] < pos[11][1] and pos[11][1] < pos[10][1])
+            upfingers.append(pos[16][1] < pos[15][1] and pos[15][1] < pos[14][1])
+            upfingers.append(pos[20][1] < pos[19][1] and pos[19][1] < pos[18][1])
+        return upfingers
