@@ -2,9 +2,7 @@ import cv2
 import numpy as np
 import random
 import mediapipe as mp
-import time
 import math
-import subprocess
 from handTracker import HandTracker
 from datetime import datetime
 import os
@@ -30,9 +28,19 @@ class ColorRect:
     ):
         alpha = self.alpha
         bg_rec = img[self.y : self.y + self.h, self.x : self.x + self.w]
-        white_rect = np.ones(bg_rec.shape, dtype=np.uint8)
-        white_rect[:] = self.color
-        res = cv2.addWeighted(bg_rec, alpha, white_rect, 1 - alpha, 1.0)
+        white_rect = np.ones(bg_rec.shape, dtype=np.uint8) * 255
+
+        if len(self.color) == 4:  # If color has an alpha channel
+            white_rect = np.dstack(
+                (white_rect, np.ones(bg_rec.shape[:2], dtype=np.uint8) * 255)
+            )
+            white_rect[:, :, :3] = self.color[:3]
+            white_rect[:, :, 3] = self.color[3]
+            res = cv2.addWeighted(bg_rec, alpha, white_rect[:, :, :3], 1 - alpha, 1.0)
+        else:
+            white_rect[:] = self.color
+            res = cv2.addWeighted(bg_rec, alpha, white_rect, 1 - alpha, 1.0)
+
         img[self.y : self.y + self.h, self.x : self.x + self.w] = res
         text_size = cv2.getTextSize(self.text, fontFace, fontScale, thickness)
         text_pos = (
@@ -48,7 +56,7 @@ class ColorRect:
 
 
 class PoseOverlay:
-    def __init__(self, overlay_img_path="board_drawing.png"):
+    def __init__(self, overlay_img_path="tshirtsdesigns/board_drawing.png"):
         self.mpPose = mp.solutions.pose
         self.pose = self.mpPose.Pose()
         self.overlay_img = cv2.imread(overlay_img_path, cv2.IMREAD_UNCHANGED)
@@ -124,44 +132,28 @@ class PoseOverlay:
         primary_window_size,
         overlay_movement_factor=0.5,
     ):
-        # Unpack the primary window dimensions
         primary_width, primary_height = primary_window_size
         aspect_ratio = self.overlay_img.shape[1] / self.overlay_img.shape[0]
+        max_projection_size = int(0.6 * primary_width)
+        min_projection_size = int(0.15 * primary_width)
 
-        # Calculate dynamic min/max projection sizes based on primary window dimensions
-        max_projection_size = int(
-            0.6 * primary_width
-        )  # e.g., max projection size as 60% of primary window width
-        min_projection_size = int(
-            0.15 * primary_width
-        )  # e.g., min projection size as 15% of primary window width
-
-        # Determine projection width inversely proportional to chest_width
         if chest_width <= 0.15 * primary_width:
             projection_width = max_projection_size
         elif chest_width >= 0.3 * primary_width:
             projection_width = min_projection_size
         else:
-            # Smooth scaling between min and max
             scale_factor = (0.3 * primary_width - chest_width) / (0.15 * primary_width)
             projection_width = min_projection_size + int(
                 scale_factor * (max_projection_size - min_projection_size)
             )
 
-        # Calculate the corresponding height while maintaining aspect ratio
         projection_height = int(projection_width / aspect_ratio)
-
-        # Resize the overlay image to the calculated inverse dimensions
         resized_overlay = cv2.resize(
             self.overlay_img, (projection_width, projection_height)
         )
-
-        # Initialize the overlay window
         overlay_window = np.zeros(
             (projection_height, projection_width, 3), dtype=np.uint8
         )
-
-        # Apply transparency if the overlay image has an alpha channel
         has_alpha = self.overlay_img.shape[2] == 4
         if has_alpha:
             for c in range(3):
@@ -171,16 +163,13 @@ class PoseOverlay:
         else:
             overlay_window = resized_overlay
 
-        # Calculate dynamic projection position with an offset based on `overlay_movement_factor`
         x_center, y_center = chest_center
         projection_x = int(x_center * overlay_movement_factor)
         projection_y = int(y_center * overlay_movement_factor)
 
-        # Keep the projection window within primary window bounds
         projection_x = min(max(projection_x, 0), primary_width - projection_width)
         projection_y = min(max(projection_y, 0), primary_height - projection_height)
 
-        # Display the overlay projection at the calculated dynamic position
         cv2.imshow("Overlay Projection", overlay_window)
 
     def on_mouse(self, event, x, y, flags, param):
@@ -216,11 +205,15 @@ class PoseOverlay:
         cap.release()
         cv2.destroyAllWindows()
 
-        if self.clicked:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            new_filename = f"../board_drawing_{timestamp}.png"
-            os.rename(self.overlay_img_path, new_filename)
-            subprocess.Popen(["python", "paint\start.py"])
+    def add_transparency(self, image_path):
+        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        if img.shape[2] == 3:
+            tmp = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(tmp, 0, 255, cv2.THRESH_BINARY)
+            b, g, r = cv2.split(img)
+            rgba = [b, g, r, alpha]
+            img = cv2.merge(rgba, 4)
+        cv2.imwrite(image_path, img)
 
 
 detector = HandTracker(detectionCon=0.5)
@@ -229,12 +222,14 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
 
-canvas = np.zeros((720, 1280, 3), np.uint8)
+canvas = np.zeros((720, 1280, 4), np.uint8)
+canvas[:, :, 3] = 0  # Set alpha channel to 0 (fully transparent)
+
 px, py = 0, 0
-color = (255, 0, 0)
+color = (255, 0, 0, 255)
 brushSize = 5
 eraserSize = 20
-colorsBtn = ColorRect(200, 0, 100, 100, (120, 255, 0), "Colours")
+colorsBtn = ColorRect(200, 0, 100, 100, (120, 255, 0, 255), "Colours")
 
 colors = [
     ColorRect(
@@ -242,29 +237,33 @@ colors = [
         0,
         100,
         100,
-        (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
+        (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255),
     ),
-    ColorRect(400, 0, 100, 100, (0, 0, 255)),
-    ColorRect(500, 0, 100, 100, (255, 0, 0)),
-    ColorRect(600, 0, 100, 100, (0, 255, 0)),
-    ColorRect(700, 0, 100, 100, (0, 255, 255)),
-    ColorRect(800, 0, 100, 100, (0, 0, 0), "Eraser"),
+    ColorRect(400, 0, 100, 100, (0, 0, 255, 255)),
+    ColorRect(500, 0, 100, 100, (255, 0, 0, 255)),
+    ColorRect(600, 0, 100, 100, (0, 255, 0, 255)),
+    ColorRect(700, 0, 100, 100, (0, 255, 255, 255)),
+    ColorRect(800, 0, 100, 100, (0, 0, 0, 255), "Eraser"),
 ]
-clear = ColorRect(900, 0, 100, 100, (100, 100, 100), "Clear")
+clear = ColorRect(900, 0, 100, 100, (100, 100, 100, 255), "Clear")
 pens = [
-    ColorRect(1100, 50 + 100 * i, 100, 100, (50, 50, 50), str(size))
+    ColorRect(1100, 50 + 100 * i, 100, 100, (50, 50, 50, 255), str(size))
     for i, size in enumerate(range(5, 25, 5))
 ]
 
 penBtn = ColorRect(1100, 0, 100, 50, color, "Pen")
-boardBtn = ColorRect(50, 0, 100, 100, (255, 255, 0), "Board")
-whiteBoard = ColorRect(50, 120, 1020, 580, (255, 255, 255), alpha=0.6)
-saveBtn = ColorRect(1100, 600, 100, 70, (70, 200, 70), "Save")
+boardBtn = ColorRect(50, 0, 100, 100, (255, 255, 0, 255), "Board")
+whiteBoard = ColorRect(
+    50, 120, 1020, 580, (255, 255, 255, 153)
+)  # Semi-transparent white
+saveBtn = ColorRect(1100, 600, 100, 70, (70, 200, 70, 255), "Save")
 
 coolingCounter = 20
 hideBoard = True
 hideColors = True
 hidePenSizes = True
+
+os.makedirs("tshirtsdesigns/gallery", exist_ok=True)
 
 while True:
     if coolingCounter:
@@ -303,7 +302,8 @@ while True:
 
                 if clear.isOver(x, y):
                     clear.alpha = 0
-                    canvas = np.zeros((720, 1280, 3), np.uint8)
+                    canvas = np.zeros((720, 1280, 4), np.uint8)
+                    canvas[:, :, 3] = 0  # Reset alpha channel to 0 (fully transparent)
                 else:
                     clear.alpha = 0.5
 
@@ -334,14 +334,24 @@ while True:
             if saveBtn.isOver(x, y) and not coolingCounter:
                 coolingCounter = 10
                 saveBtn.alpha = 0
-                cv2.imwrite("board_drawing.png", canvas)
 
-                # Close the current OpenCV windows and release the camera
+                # Save main board drawing image
+                cv2.imwrite("tshirtsdesigns/board_drawing.png", canvas)
+
+                # Save timestamped copy to gallery
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                gallery_path = f"tshirtsdesigns/gallery/board_gallery_{timestamp}.png"
+                cv2.imwrite(gallery_path, canvas)
+
+                # Close OpenCV windows and release camera
                 cap.release()
                 cv2.destroyAllWindows()
 
+                # Add transparency to saved image
+                pose_overlay = PoseOverlay("tshirtsdesigns/board_drawing.png")
+                pose_overlay.add_transparency("tshirtsdesigns/board_drawing.png")
+
                 # Open pose detection with chest overlay
-                pose_overlay = PoseOverlay("board_drawing.png")
                 pose_overlay.run_pose_detection()
                 break
             else:
@@ -352,7 +362,7 @@ while True:
                 cv2.circle(frame, positions[8], brushSize, color, -1)
                 if px == 0 and py == 0:
                     px, py = positions[8]
-                if color == (0, 0, 0):
+                if color == (0, 0, 0, 255):
                     cv2.line(canvas, (px, py), positions[8], color, eraserSize)
                 else:
                     cv2.line(canvas, (px, py), positions[8], color, brushSize)
@@ -369,11 +379,11 @@ while True:
 
     if not hideBoard:
         whiteBoard.drawRect(frame)
-        canvasGray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
+        canvasGray = cv2.cvtColor(canvas[:, :, :3], cv2.COLOR_BGR2GRAY)
         _, imgInv = cv2.threshold(canvasGray, 20, 255, cv2.THRESH_BINARY_INV)
         imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
         frame = cv2.bitwise_and(frame, imgInv)
-        frame = cv2.bitwise_or(frame, canvas)
+        frame = cv2.bitwise_or(frame, canvas[:, :, :3])
 
     if not hideColors:
         for c in colors:
@@ -384,7 +394,7 @@ while True:
         for pen in pens:
             pen.drawRect(frame)
 
-    cv2.imshow("video", frame)
+    cv2.imshow("PaintIt", frame)
     k = cv2.waitKey(1)
     if k == ord("q"):
         break
