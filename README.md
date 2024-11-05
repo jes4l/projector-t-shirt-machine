@@ -1,6 +1,6 @@
 # Projector T-Shirt Machine 🎨👕🏆
 
-This is my project that won 2nd place prize at [Durhack 2024](https://durhack.com/) and here is my [devpost](https://devpost.com/software/projector-t-shirt-machine?ref_content=user-portfolio&ref_feature=in_progress). Projector T-Shirt Machine turns your own body into a wearable canvas. It uses OpenCv and MediaPipe for detecting hand gestures that allows you to paint your design on a virtual board, save it, and then project it directly onto yourself via laptop or projector, all while maintaining dynamic scaling as you move closer or further from the projector.
+This is my project that won 2nd place prize at [Durhack 2024](https://durhack.com/) and here is my [devpost](https://devpost.com/software/projector-t-shirt-machine?ref_content=user-portfolio&ref_feature=in_progress). Projector T-Shirt Machine turns your own T-Shirt into a canvas. It uses OpenCV and MediaPipe for detecting hand gestures that allows you to paint your design on a virtual board, save it, and then project it directly onto yourself via laptop or projector, all while maintaining dynamic scaling as you move closer or further from the projector.
 
 ![Start Screen](./assets/1.png)
 
