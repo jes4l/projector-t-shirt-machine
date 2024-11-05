@@ -63,5 +63,5 @@ position Overlay Projection Window on Extended Mode using Windows P and Drag it 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jes4l/projectorT-ShirtMachine
+   git clone https://github.com/jes4l/projector-t-shirt-machine
    ```
