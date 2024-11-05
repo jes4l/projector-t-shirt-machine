@@ -394,7 +394,7 @@ while True:
         for pen in pens:
             pen.drawRect(frame)
 
-    cv2.imshow("PaintIt", frame)
+    cv2.imshow("Virtual Canvas and Overlay", frame)
     k = cv2.waitKey(1)
     if k == ord("q"):
         break
