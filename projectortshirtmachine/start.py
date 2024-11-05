@@ -3,6 +3,8 @@ import math
 import random
 import sys
 
+print("Pygame:", pygame.__version__)
+
 pygame.init()
 
 WIDTH, HEIGHT = 800, 600

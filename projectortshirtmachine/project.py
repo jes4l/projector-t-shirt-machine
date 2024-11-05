@@ -7,6 +7,10 @@ from handTracker import HandTracker
 from datetime import datetime
 import os
 
+print("OpenCV:", cv2.__version__)
+print("NumPy:", np.__version__)
+print("MediaPipe:", mp.__version__)
+
 
 class ColorRect:
     def __init__(self, x, y, w, h, color, text="", alpha=0.5):
