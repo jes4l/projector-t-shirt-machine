@@ -38,7 +38,7 @@ This is my project that won 2nd place prize at [Durhack 2024](https://durhack.co
 
    When projecting use "Extended Mode", drag the Overlay Projection window onto the extended side for clear image projection onto the T-Shirt. Also, unlike myself in this image, use darker lighting for a better effect.
 
-![Drawing Projection via Projector](./assets/5.jpg)
+![Drawing Projection via Projector](./assets/Copy of DURHACK_B-93.jpg.jpg)
 
 ### Installation Requirements
 
