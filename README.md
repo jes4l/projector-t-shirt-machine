@@ -27,6 +27,7 @@ This is my project that won 2nd place prize at [Durhack 2024](https://durhack.co
    When you click saveBtn, the current drawing is saved as an image, board_drawing.png, in the [`tshirtsdesigns folder`](./tshirtsdesigns), with a transparent background applied using add_transparency. A copy of the image is also saved in the [`gallery folder`](./tshirtsdesigns/gallery), allowing it to be overlaid on the chest in other applications.
 
 ![Virtual Board Drawing](./assets/3.jpg)
+![Virtual Board Drawing](./assets/6.jpg)
 
 4. **Pose Detection with Overlay (project.py)**:
    After saving your art, PoseOverlay is initialised to project your art onto your T-Shirt by converting "board_drawing.png" into an RGB format using imgRGB which is required of MediaPipe and calculates the chest's central position and width based on landmark[11](left shoulder) and landmark[12](right shoulder) using "find_chest_area". If no landmarks of the chest are detected it returns none, none values for error handling and once identified, overlay_on_chest positions the image at the chest centre and scales it to match your chest width while adjusting its height for natural fit and transparency. Before applying the overlay, the method checks whether the new position fits within the image boundaries so you can move around and the projection will be accurate. A home button is also on this window so return home using left click.
@@ -38,7 +39,8 @@ This is my project that won 2nd place prize at [Durhack 2024](https://durhack.co
 
    When projecting use "Extended Mode", drag the Overlay Projection window onto the extended side for clear image projection onto the T-Shirt. Also, unlike myself in this image, use darker lighting for a better effect.
 
-![Drawing Projection via Projector](./assets/Copy of DURHACK_B-93.jpg.jpg)
+![Drawing Projection via Projector](./assets/7.jpg)
+![Drawing Projection via Projector](./assets/5.jpg)
 
 ### Installation Requirements
 
